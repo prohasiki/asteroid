@@ -28,6 +28,10 @@ class App {
 
     const { textures, fallback } = await loadTextures(this.renderer, {
       onProgress: (e) => this.onLoadProgress(e),
+      onUpgrade: (key, tex, old) => {
+        if (this.earth) this.earth.setTexture(key, tex);
+        if (old) old.dispose();
+      },
     });
     this.textures = textures;
     this.fallback = fallback;
@@ -102,13 +106,14 @@ class App {
 
   frame() {
     const dt = Math.min(this.clock.getDelta(), 0.1);
-    if (!this.sim.paused) this.sim.time += dt * 1000 * this.sim.speed;
+    const dtSim = this.sim.paused ? 0 : dt * this.sim.speed;
+    this.sim.time += dtSim * 1000;
     const date = new Date(this.sim.time);
 
     const s = sunDirectionScene(date);
     this.sunDir.set(s.x, s.y, s.z);
     this.sunLight.position.copy(this.sunDir).multiplyScalar(50);
-    this.earth.update(date);
+    this.earth.update(date, dtSim, dt, this.sunDir);
 
     this.controls.update();
     this.composer.render();
