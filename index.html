@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Планета Земля — интерактивная 3D-энциклопедия</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <div id="scene"></div>
+  <div id="loader">
+    <div class="loader-title">Планета Земля</div>
+    <div class="loader-track"><div id="loader-bar"></div></div>
+    <div id="loader-text">Загрузка текстур…</div>
+  </div>
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

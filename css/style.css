@@ -1,0 +1,57 @@
+/* Базовые стили сцены и экрана загрузки (интерфейс расширяется на следующих этапах). */
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: #e8f1ff;
+  font-family: system-ui, sans-serif;
+}
+
+#scene, #scene canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+}
+
+#loader {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 16px;
+  text-align: center;
+  background: radial-gradient(circle at 50% 40%, #0b1730, #000 70%);
+  transition: opacity 0.8s ease;
+}
+
+.is-ready #loader {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader-title {
+  font-size: 28px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.loader-track {
+  width: 320px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+#loader-bar {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #3fd0ff, #8f7bff);
+  transition: width 0.3s ease;
+}
+
+#loader-text {
+  font-size: 13px;
+  opacity: 0.7;
+}
