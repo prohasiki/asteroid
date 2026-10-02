@@ -38,7 +38,7 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir -p _site
-          cp -r index.html css js docs LICENSE README.md _site/
+          cp -r index.html css js LICENSE _site/
           touch _site/.nojekyll
 
       - name: Configure Pages
