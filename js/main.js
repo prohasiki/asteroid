@@ -3,12 +3,10 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { loadTextures } from './textures.js';
 import { Earth } from './earth.js';
+import { Sky, MOON_RADIUS } from './sky.js';
+import { PostFX } from './post.js';
 import { sunDirectionScene } from './astro.js';
 
 class App {
@@ -18,26 +16,31 @@ class App {
     /** Время симуляции (мс с эпохи Unix), скорость и пауза. */
     this.sim = { time: Date.now(), speed: 1, paused: false };
     this.sunDir = new THREE.Vector3(1, 0, 0);
+    this.flare = { x: 0.5, y: 0.5, strength: 0 };
+    this.quality = 'high';
   }
 
   async init() {
     this.initRenderer();
     this.initScene();
-    this.initPost();
+    this.post = new PostFX(this.renderer, this.scene, this.camera, { quality: this.quality });
     window.addEventListener('resize', () => this.onResize());
 
     const { textures, fallback } = await loadTextures(this.renderer, {
       onProgress: (e) => this.onLoadProgress(e),
       onUpgrade: (key, tex, old) => {
-        if (this.earth) this.earth.setTexture(key, tex);
+        if (key === 'moon') this.sky?.setMoonTexture(tex);
+        else this.earth?.setTexture(key, tex);
         if (old) old.dispose();
       },
     });
     this.textures = textures;
     this.fallback = fallback;
 
-    this.earth = new Earth(textures);
+    this.earth = new Earth(textures, { quality: this.quality });
     this.scene.add(this.earth.root);
+    this.sky = new Sky({ moonTexture: textures.moon, pixelRatio: this.renderer.getPixelRatio(), quality: this.quality });
+    this.scene.add(this.sky.group);
 
     document.body.classList.add('is-ready');
     window.__earthApp = this;
@@ -51,6 +54,7 @@ class App {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.localClippingEnabled = true;
     this.container.appendChild(renderer.domElement);
     this.renderer = renderer;
   }
@@ -72,19 +76,6 @@ class App {
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.25;
     this.controls = controls;
-
-    this.sunLight = new THREE.DirectionalLight(0xffffff, 3.2);
-    this.scene.add(this.sunLight);
-    this.scene.add(new THREE.AmbientLight(0x223344, 0.08));
-  }
-
-  initPost() {
-    const composer = new EffectComposer(this.renderer);
-    composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.5, 0.85);
-    composer.addPass(this.bloomPass);
-    composer.addPass(new OutputPass());
-    this.composer = composer;
   }
 
   onLoadProgress(e) {
@@ -101,22 +92,38 @@ class App {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
-    this.composer.setSize(w, h);
+    this.post.setSize(w, h);
+  }
+
+  /** Ближняя плоскость отсечения по расстоянию до ближайшей поверхности (точность глубины). */
+  updateClipPlanes() {
+    const cam = this.camera.position;
+    const dEarth = cam.length() - 1;
+    const dMoon = cam.distanceTo(this.sky.moonPos) - MOON_RADIUS;
+    const near = THREE.MathUtils.clamp(Math.min(dEarth, dMoon) * 0.35, 0.002, 1.0);
+    if (Math.abs(near - this.camera.near) / this.camera.near > 0.05) {
+      this.camera.near = near;
+      this.camera.updateProjectionMatrix();
+    }
   }
 
   frame() {
     const dt = Math.min(this.clock.getDelta(), 0.1);
+    const time = this.clock.elapsedTime;
     const dtSim = this.sim.paused ? 0 : dt * this.sim.speed;
     this.sim.time += dtSim * 1000;
     const date = new Date(this.sim.time);
 
     const s = sunDirectionScene(date);
     this.sunDir.set(s.x, s.y, s.z);
-    this.sunLight.position.copy(this.sunDir).multiplyScalar(50);
     this.earth.update(date, dtSim, dt, this.sunDir);
 
     this.controls.update();
-    this.composer.render();
+    this.sky.update(date, time, this.camera, this.sunDir);
+    this.updateClipPlanes();
+    this.sky.computeSunFlare(this.camera, this.flare);
+    this.post.update(time, this.flare);
+    this.post.render(dt);
   }
 }
 

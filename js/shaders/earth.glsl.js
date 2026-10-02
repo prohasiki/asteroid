@@ -163,7 +163,7 @@ export const earthFragment = /* glsl */ `
     // Огни городов: только ночью, тёплые, с затуханием к терминатору и под облаками.
     vec3 lightsTex = texture2D(uNightMap, vUv).rgb;
     // Порог отсекает тусклый фон суши, если он есть в ночной карте.
-    lightsTex *= smoothstep(0.012, 0.07, luma(lightsTex));
+    lightsTex *= smoothstep(0.015, 0.09, luma(lightsTex));
     float night = 1.0 - smoothstep(-0.16, 0.06, NdL);
     vec3 lights = pow(lightsTex, vec3(1.1)) * vec3(1.0, 0.76, 0.48) * night * (1.0 - cloudAbove * 0.65) * uCityLights;
 
