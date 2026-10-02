@@ -429,8 +429,8 @@ await check('Звук включается и выключается (Web Audio)
 
 await check('Изменение размера окна обрабатывается', async () => {
   await page.setViewportSize({ width: 1024, height: 640 });
-  await page.waitForTimeout(400);
-  await frames(page, 2);
+  await page.waitForFunction(() => window.innerWidth === 1024, null, { timeout: 30000 });
+  await frames(page, 3);
   const r = await page.evaluate(() => {
     const a = window.__earthApp;
     const c = a.renderer.domElement;
@@ -492,7 +492,7 @@ await check('Мобильная версия: глобус по центру, п
   assert(mob.log.errors.length === 0, `ошибки: ${mob.log.errors.join(' | ')}`);
   return `центр глобуса (${r.cx.toFixed(0)}, ${r.cy.toFixed(0)}); шторка открывается/закрывается; тап по глобусу → карточка`;
 });
-if (SCREENSHOTS && !NASA) {
+if (SCREENSHOTS) {
   await mob.page.evaluate(() => {
     window.__earthApp.ui.hideCard();
     window.__earthApp.setQualityMode('high');
@@ -597,6 +597,11 @@ if (SCREENSHOTS) {
     const a = window.__earthApp;
     a.quiz.close();
     a.handleAction('find');
+    // Для наглядности берём объект на дневной стороне (выше всего Солнце).
+    const g2 = a.findGame;
+    const best = [...g2.targets].sort((p, q) => a.describePoint(q.lat, q.lon).sunElevation - a.describePoint(p.lat, p.lon).sunElevation)[0];
+    g2.targets[g2.round] = best;
+    g2.renderPrompt();
     a.director.flight = null;
     a.director.setMode('orbit');
     a.controls.enabled = true;

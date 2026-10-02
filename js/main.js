@@ -66,10 +66,8 @@ class App {
     this.initScene();
     this.post = new PostFX(this.renderer, this.scene, this.camera, { quality: this.quality });
     this.ui = new UI(this);
-    window.addEventListener('resize', () => {
-      clearTimeout(this.resizeTimer);
-      this.resizeTimer = setTimeout(() => this.onResize(), 80);
-    });
+    // Размеры пересчитываются в начале ближайшего кадра — не чаще раза за кадр и всегда до рендера.
+    window.addEventListener('resize', () => { this.resizePending = true; });
     this.qualityManager = new QualityManager({
       initial: this.quality,
       onChange: (level, reason) => {
@@ -598,6 +596,10 @@ class App {
   }
 
   frame() {
+    if (this.resizePending) {
+      this.resizePending = false;
+      this.onResize();
+    }
     const rawDt = this.clock.getDelta();
     const dt = Math.min(rawDt, 0.1);
     const time = this.clock.elapsedTime;

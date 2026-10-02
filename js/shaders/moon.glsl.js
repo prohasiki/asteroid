@@ -89,7 +89,7 @@ export const moonFragment = /* glsl */ `
       float dy = detail(q + B * e, fw) - dn;
       hx += dx * 0.12 * dw;
       hy += dy * 0.12 * dw;
-      albedo *= 1.0 + dn * 0.35 * dw;
+      albedo *= 1.0 + dn * 0.16 * dw;
     }
     vec3 Nb = normalize(N - (T * hx + B * hy) * uBump);
 

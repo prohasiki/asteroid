@@ -346,10 +346,10 @@ function genNight() {
   for (const [, lat, lon, pop] of CITIES) {
     const size = 0.25 + Math.sqrt(pop) * 0.32; // градусы
     const cx = X(lon), cy = Y(lat);
-    const rad = (size / 360) * W * 2.2;
+    const rad = (size / 360) * W * 1.3;
     const grd = g.createRadialGradient(cx, cy, 0, cx, cy, rad);
-    grd.addColorStop(0, 'rgba(255, 214, 150, 0.85)');
-    grd.addColorStop(0.35, 'rgba(255, 170, 90, 0.25)');
+    grd.addColorStop(0, 'rgba(255, 214, 150, 0.5)');
+    grd.addColorStop(0.35, 'rgba(255, 170, 90, 0.12)');
     grd.addColorStop(1, 'rgba(255, 140, 60, 0)');
     g.fillStyle = grd;
     g.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
@@ -360,7 +360,7 @@ function genNight() {
       const dist = Math.abs((rnd() + rnd() + rnd() - 1.5) / 1.5) * size * spread;
       const lo = lon + (Math.cos(ang) * dist) / Math.max(0.2, Math.cos((lat * Math.PI) / 180));
       const la = lat + Math.sin(ang) * dist;
-      g.fillStyle = `rgba(255, ${200 + Math.floor(rnd() * 40)}, ${120 + Math.floor(rnd() * 60)}, ${(0.35 + rnd() * 0.6).toFixed(2)})`;
+      g.fillStyle = `rgba(255, ${200 + Math.floor(rnd() * 40)}, ${120 + Math.floor(rnd() * 60)}, ${(0.2 + rnd() * 0.5).toFixed(2)})`;
       g.fillRect(X(lo), Y(la), 1 + (rnd() < 0.2 ? 1 : 0), 1);
     }
   }

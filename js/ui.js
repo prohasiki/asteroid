@@ -457,7 +457,10 @@ export class UI {
       this.el.hudRegion.textContent = s.hover.label;
     } else {
       this.el.hudCoords.textContent = '—';
-      this.el.hudRegion.textContent = s.mode === 'moon' ? 'Вид с Луны: колесо — зум телеобъектива' : 'Наведите курсор на планету';
+      const touch = window.matchMedia('(hover: none)').matches;
+      this.el.hudRegion.textContent = s.mode === 'moon'
+        ? (touch ? 'Вид с Луны' : 'Вид с Луны: колесо — зум телеобъектива')
+        : (touch ? 'Коснитесь планеты' : 'Наведите курсор на планету');
     }
     this.el.hudAlt.textContent = s.mode === 'moon'
       ? `${formatNumber(Math.round(s.earthDistanceKm))} км до Земли`

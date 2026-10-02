@@ -156,7 +156,7 @@ export class Magnetosphere {
     this.group.getWorldQuaternion(this._q).invert();
     this._d.copy(sunDir).negate().applyQuaternion(this._q);
     const nightPhi = Math.atan2(this._d.z, this._d.x);
-    const intensity = this.auroraLevel * (1 + Math.min(this.boost, 3) * 0.6);
+    const intensity = this.auroraLevel * (1 + Math.min(this.boost, 3) * 0.25);
     for (const a of this.auroras) {
       const u = a.material.uniforms;
       u.uTime.value = time;
