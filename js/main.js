@@ -18,6 +18,7 @@ import { Quiz } from './quiz.js';
 import { FindGame } from './findgame.js';
 import { Progress } from './achievements.js';
 import { AudioEngine } from './audio.js';
+import { QualityManager } from './quality.js';
 import { CONTINENT_NAMES, CONTINENTS } from './data.js';
 import { sunDirectionScene, sunPosition, RAD, EARTH_RADIUS_KM } from './astro.js';
 import { regionAt, nearestCity, localSolarTime, nominalUtcOffset, formatUtcOffset, formatCoords } from './geo.js';
@@ -65,7 +66,18 @@ class App {
     this.initScene();
     this.post = new PostFX(this.renderer, this.scene, this.camera, { quality: this.quality });
     this.ui = new UI(this);
-    window.addEventListener('resize', () => this.onResize());
+    window.addEventListener('resize', () => {
+      clearTimeout(this.resizeTimer);
+      this.resizeTimer = setTimeout(() => this.onResize(), 80);
+    });
+    this.qualityManager = new QualityManager({
+      initial: this.quality,
+      onChange: (level, reason) => {
+        if (this.qualityMode !== 'auto') return;
+        this.applyQuality(level);
+        this.ui.toast({ title: `Качество: ${QUALITY_LABEL[level]}`, text: `Автонастройка для плавной анимации (${reason}).`, iconName: 'gear', kind: 'info', duration: 3200 });
+      },
+    });
 
     const { textures, fallback } = await loadTextures(this.renderer, {
       onProgress: (e) => this.ui.loaderProgress(e),
@@ -418,6 +430,8 @@ class App {
   setQualityMode(mode) {
     this.qualityMode = mode;
     this.applyQuality(mode === 'auto' ? this.quality : mode);
+    this.qualityManager.setEnabled(mode === 'auto');
+    this.qualityManager.setLevel(this.quality);
     this.ui.setQualityButtons(mode, this.quality);
   }
 
@@ -553,6 +567,13 @@ class App {
 
   onResize() {
     const w = window.innerWidth, h = window.innerHeight;
+    // Учитываем смену devicePixelRatio (перенос окна на другой монитор, масштаб).
+    const pr = Math.min(window.devicePixelRatio || 1, PIXEL_RATIO[this.quality]);
+    if (pr !== this.renderer.getPixelRatio()) {
+      this.renderer.setPixelRatio(pr);
+      this.sky?.setPixelRatio(pr);
+      this.markers?.setPixelRatio(pr);
+    }
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
@@ -577,8 +598,10 @@ class App {
   }
 
   frame() {
-    const dt = Math.min(this.clock.getDelta(), 0.1);
+    const rawDt = this.clock.getDelta();
+    const dt = Math.min(rawDt, 0.1);
     const time = this.clock.elapsedTime;
+    this.qualityManager.sample(rawDt);
     const dtSim = this.sim.paused ? 0 : dt * this.sim.speed;
     this.sim.time += dtSim * 1000;
     const date = new Date(this.sim.time);
