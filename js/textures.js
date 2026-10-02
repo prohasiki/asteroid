@@ -233,7 +233,7 @@ function genDay() {
           let cr = base[1], cg = base[2], cb = base[3];
           const n3 = fbm(u, v, 22, 13, 3);
           // Границы пустынь и лесов искажаются шумом, чтобы не было прямоугольников.
-          const lonW = lon + (n3 - 0.5) * 26, latW = lat + (n2 - 0.5) * 14;
+          const lonW = lon + (n3 - 0.5) * 26 + (n2 - 0.5) * 14, latW = lat + (n3 - 0.5) * 18;
           const desert = smooth(0.4, 0.62, regionWeight(DESERTS, lonW, latW, 6) * 0.8 + (n3 - 0.5) * 0.35 + 0.1);
           const sand = 0.85 + n3 * 0.3;
           cr = mix(cr, 206 * sand, desert); cg = mix(cg, 170 * sand, desert); cb = mix(cb, 116 * sand, desert);
@@ -384,8 +384,10 @@ function genClouds() {
       // Деформация координат (domain warping) — вихревая структура облаков.
       const wu = u + (fbm(u, v, 8, 301, 3) - 0.5) * 0.09;
       const wv = v + (fbm(u, v, 8, 302, 3) - 0.5) * 0.06;
-      const n = fbm(((wu % 1) + 1) % 1, wv, 18, 303, 6);
-      const cov = smooth(0.47, 0.72, n * 0.8 + env * 0.32);
+      const n = fbm(((wu % 1) + 1) % 1, wv, 24, 303, 6);
+      // Крупные области ясного неба между облачными системами.
+      const clear = smooth(0.3, 0.56, fbm(u, v, 9, 305, 3) + (env - 0.5) * 0.4);
+      const cov = smooth(0.46, 0.7, n * 0.8 + env * 0.3) * clear;
       const fine = 0.8 + fbm(u, v, 64, 304, 2) * 0.4;
       const val = Math.min(255, cov * fine * 255);
       const i = (y * W + x) * 4;

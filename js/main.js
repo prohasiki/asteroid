@@ -9,11 +9,15 @@ import { Earth } from './earth.js';
 import { Sky, MOON_RADIUS } from './sky.js';
 import { PostFX } from './post.js';
 import { CameraDirector } from './camera.js';
-import { UI } from './ui.js';
+import { UI, plural } from './ui.js';
 import { Interior } from './interior.js';
 import { Magnetosphere } from './magnetosphere.js';
 import { Continents } from './continents.js';
 import { Markers } from './markers.js';
+import { Quiz } from './quiz.js';
+import { FindGame } from './findgame.js';
+import { Progress } from './achievements.js';
+import { AudioEngine } from './audio.js';
 import { CONTINENT_NAMES, CONTINENTS } from './data.js';
 import { sunDirectionScene, sunPosition, RAD, EARTH_RADIUS_KM } from './astro.js';
 import { regionAt, nearestCity, localSolarTime, nominalUtcOffset, formatUtcOffset, formatCoords } from './geo.js';
@@ -85,6 +89,23 @@ class App {
     this.markers = new Markers(this.earth, this.renderer.getPixelRatio());
     this.selectedContinent = null;
     this.visitedContinents = new Set();
+
+    this.audio = new AudioEngine();
+    this.progress = new Progress(this.ui);
+    this.progress.audio = this.audio;
+    this.quiz = new Quiz({
+      root: document.getElementById('quiz'),
+      card: document.getElementById('quiz-card'),
+      audio: this.audio,
+      onCombo: () => this.progress.unlock('combo5'),
+      onFinish: (r) => {
+        const record = this.progress.recordQuiz(r.score);
+        this.progress.unlock('quiz_done');
+        if (r.rank === 'Астронавт') this.progress.unlock('astronaut');
+        if (record) this.ui.toast({ title: 'Новый рекорд викторины', text: `${r.score.toLocaleString('ru-RU')} ${plural(r.score, ['очко', 'очка', 'очков'])}`, iconName: 'star', kind: 'info' });
+      },
+    });
+    this.findGame = new FindGame({ root: document.getElementById('findgame'), app: this });
 
     this.director = new CameraDirector(this.camera, this.controls, {
       getMoonPos: () => this.sky.moonPos,
@@ -215,7 +236,7 @@ class App {
     this.markers.addPin(hit.lat, hit.lon, { color: '#46d4ff', ttl: 8, size: 14 });
     if (this.ui.currentSection === 'continents' && info.continent) this.showContinent(info.continent);
     else this.ui.showPointCard(info, x, y);
-    this.onGlobeClick?.(info);
+    this.progress.unlock('first_contact');
     this.audio?.click();
   }
 
@@ -294,7 +315,8 @@ class App {
         fov: 40,
       }), { duration: 2.4, arc: 0.1 });
       if (this.ui.currentSection !== 'interior') this.ui.openSection('interior');
-      this.onCut?.();
+      this.progress.unlock('geologist');
+      this.audio?.whoosh();
     }
     return on;
   }
@@ -309,7 +331,8 @@ class App {
     const w = window.innerWidth, h = window.innerHeight;
     this.ui.showContinentCard(c, w / 2 + Math.min(260, w * 0.18), h / 2);
     this.visitedContinents.add(id);
-    this.onContinent?.(id, this.visitedContinents.size);
+    if (this.visitedContinents.size >= 6) this.progress.unlock('cartographer');
+    this.audio?.whoosh();
     clearTimeout(this.selectTimer);
     this.selectTimer = setTimeout(() => { this.selectedContinent = null; }, 9000);
   }
@@ -329,7 +352,12 @@ class App {
     this.sim.speed = speed;
     this.sim.paused = false;
     this.audio?.click();
-    this.onSpeedChange?.(speed);
+    if (speed >= 10000) this.progress.unlock('time_lord');
+  }
+
+  /** Вызывается интерфейсом при открытии раздела энциклопедии. */
+  onSectionOpen(id, count, total) {
+    this.progress?.markVisited(id, count, total);
   }
 
   togglePause() {
@@ -375,7 +403,10 @@ class App {
       this.sky.setLayer('iss', on);
       this.sky.setLayer('issOrbit', on);
     } else if (name === 'borders') this.continents.setBorders(on);
-    else if (name === 'magnetic') this.magneto.setField(on);
+    else if (name === 'magnetic') {
+      this.magneto.setField(on);
+      if (on) this.progress.unlock('aurora_hunter');
+    }
     else if (name === 'aurora') this.magneto.setAurora(on);
     this.ui.setLayerChecked(name, on);
   }
@@ -412,9 +443,11 @@ class App {
   }
 
   toggleSound() {
-    if (!this.audio) return;
-    const on = this.audio.toggle();
+    const on = this.audio.toggleEnabled();
     this.ui.setSoundState(on);
+    if (!on && !this.audio.supported) {
+      this.ui.toast({ title: 'Звук недоступен', text: 'Браузер не поддерживает Web Audio API.', iconName: 'sound-off', kind: 'info' });
+    }
   }
 
   screenshot() {
@@ -433,7 +466,7 @@ class App {
       setTimeout(() => URL.revokeObjectURL(url), 3000);
     }, 'image/png');
     this.ui.toast({ title: 'Снимок сохранён', text: 'PNG-файл с текущим видом планеты.', iconName: 'shot', kind: 'info', duration: 2600 });
-    this.onScreenshot?.();
+    this.progress.unlock('photographer');
   }
 
   /** Единая точка обработки действий интерфейса. */
@@ -457,7 +490,8 @@ class App {
         if (this.director.mode === 'moon') this.director.reset();
         else {
           this.director.flyToMoon();
-          this.onMoonView?.();
+          this.progress.unlock('lunatic');
+          this.audio?.whoosh();
         }
         break;
       case 'screenshot':
@@ -470,7 +504,19 @@ class App {
         this.setLayer(payload.name, payload.on ?? true);
         break;
       case 'escape':
-        if (this.director.mode === 'moon') this.director.reset();
+        if (this.findGame.active) this.findGame.close();
+        else if (this.director.mode === 'moon') this.director.reset();
+        break;
+      case 'quiz':
+        this.findGame.close();
+        this.ui.closeSheets();
+        this.ui.hideCard();
+        this.quiz.start();
+        break;
+      case 'find':
+        this.quiz.close();
+        this.ui.closeSheets();
+        this.findGame.start();
         break;
       case 'cut':
         this.toggleCut();
@@ -482,10 +528,13 @@ class App {
         this.director.flyToLatLon(this.earth, 11.35, 142.2, 1.7);
         this.markers.addPin(11.35, 142.2, { color: '#ff6b6b', ttl: 25, size: 18 });
         this.ui.toast({ title: 'Бездна Челленджера', text: 'Глубина ≈ 10 935 м, давление более 1 070 атм.', iconName: 'water', kind: 'info' });
+        this.progress.unlock('deep_diver');
+        this.audio?.whoosh();
         break;
       case 'aurora': {
         this.setLayer('aurora', true);
         this.magneto.storm(16);
+        this.progress.unlock('aurora_hunter');
         const sp = sunPosition(new Date(this.sim.time));
         this.director.flyToLatLon(this.earth, 62, sp.subLon + 180, 2.2);
         this.ui.toast({ title: 'Магнитная буря', text: 'Сияния ярче всего на ночной стороне в авроральных овалах.', iconName: 'star', kind: 'info' });
@@ -496,7 +545,7 @@ class App {
         this.director.fly(() => ({ position: new THREE.Vector3(0.0, 1.0, 0.42).normalize().multiplyScalar(170), target: new THREE.Vector3(), up: new THREE.Vector3(0, 0, -1), fov: 40 }), { duration: 3.2, arc: 0.05 });
         break;
       default:
-        this.onExtraAction?.(action, payload);
+        break;
     }
   }
 
@@ -545,7 +594,6 @@ class App {
     this.magneto.update(time, dt, this.sunDir);
     this.continents.update(dt, time);
     this.markers.update(dt, time);
-    this.onFrame?.(date, dt, dtSim, time);
 
     this.sky.computeSunFlare(this.camera, this.flare);
     this.post.update(time, this.flare);
@@ -556,7 +604,6 @@ class App {
       this.fps = Math.round(this.frames / (time - this.fpsTime));
       this.frames = 0;
       this.fpsTime = time;
-      this.onFps?.(this.fps);
     }
     if (time - this.hudTime > 0.12) {
       this.hudTime = time;

@@ -74,6 +74,15 @@ export function hydrateIcons(root = document) {
 /* ------------------------------------------------------------------ */
 const pad = (n, l = 2) => String(n).padStart(l, '0');
 
+/** Русские формы множественного числа: plural(5, ['очко', 'очка', 'очков']). */
+export function plural(n, [one, few, many]) {
+  const a = Math.abs(Math.trunc(n)) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
+
 export function formatNumber(v, decimals = 0) {
   return Number(v).toLocaleString('ru-RU', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
@@ -328,7 +337,7 @@ export class UI {
       const input = e.target.closest('input[data-layer]');
       if (!input) return;
       this.app.setLayer(input.dataset.layer, input.checked);
-      this.app.audio?.toggle(input.checked);
+      this.app.audio?.switchSound(input.checked);
     });
   }
 
