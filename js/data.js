@@ -471,4 +471,113 @@ export const BRIGHT_STARS = [
   ['Дельта Южного Креста', 183.786, -58.749, 2.79, 22570],
 ];
 
+/** Названия материков по идентификаторам контуров. */
+export const CONTINENT_NAMES = {
+  eurasia: 'Евразия',
+  africa: 'Африка',
+  north_america: 'Северная Америка',
+  south_america: 'Южная Америка',
+  australia: 'Австралия',
+  antarctica: 'Антарктида',
+};
+
+/* ============================================================
+ *  2. СЛОИ И ОВЕРЛЕИ
+ * ============================================================ */
+
+export const LAYER_TOGGLES = [
+  { group: 'Планета' },
+  { id: 'clouds', label: 'Облака', on: true },
+  { id: 'atmosphere', label: 'Атмосфера', on: true },
+  { id: 'lights', label: 'Огни городов', on: true },
+  { group: 'Космос' },
+  { id: 'stars', label: 'Звёзды', on: true },
+  { id: 'milkyway', label: 'Млечный Путь', on: true },
+  { id: 'moonOrbit', label: 'Орбита Луны', on: true },
+  { id: 'iss', label: 'МКС и её орбита', on: true },
+  { group: 'Оверлеи' },
+  { id: 'grid', label: 'Сетка широт и долгот', on: false, color: '#8cc8ff' },
+  { id: 'tropics', label: 'Экватор, тропики, полярные круги', on: false, color: '#ffd23f' },
+  { id: 'timezones', label: 'Часовые пояса', on: false, color: '#ffad42' },
+  { id: 'borders', label: 'Границы материков', on: false, color: '#46d4ff' },
+  { id: 'climate', label: 'Климатические зоны', on: false, color: '#4caf50' },
+  { group: 'Магнитосфера' },
+  { id: 'magnetic', label: 'Силовые линии поля', on: false, color: '#7fb2ff' },
+  { id: 'aurora', label: 'Полярные сияния', on: true, color: '#5dff9d' },
+];
+
+/* ============================================================
+ *  3. РАЗДЕЛЫ ЭНЦИКЛОПЕДИИ
+ *  Типы блоков: stats, text, list, facts, layers, donut, bars,
+ *  table, actions, chips, legend (см. ui.js → renderBlock).
+ * ============================================================ */
+
+export const SECTIONS = [
+  {
+    id: 'basics',
+    title: 'Основные параметры',
+    short: 'Параметры',
+    icon: 'planet',
+    lead: 'Земля — третья планета от Солнца, крупнейшая из планет земной группы и единственное известное небесное тело, на поверхности которого есть жидкая вода и жизнь.',
+    blocks: [
+      {
+        type: 'stats',
+        title: 'Размеры и масса',
+        items: [
+          { label: 'Экваториальный радиус', value: 6378.137, decimals: 3, unit: 'км' },
+          { label: 'Полярный радиус', value: 6356.752, decimals: 3, unit: 'км' },
+          { label: 'Средний радиус', value: 6371.0, decimals: 1, unit: 'км' },
+          { label: 'Сжатие у полюсов', text: '1/298,257' },
+          { label: 'Масса', value: 5.9722, decimals: 4, suffix: ' × 10²⁴', unit: 'кг', wide: true },
+          { label: 'Средняя плотность', value: 5514, decimals: 0, unit: 'кг/м³', note: 'самая плотная планета Солнечной системы' },
+          { label: 'Площадь поверхности', value: 510.1, decimals: 1, unit: 'млн км²' },
+        ],
+      },
+      {
+        type: 'stats',
+        title: 'Гравитация и скорости',
+        items: [
+          { label: 'Ускорение свободного падения', value: 9.80665, decimals: 5, unit: 'м/с²', note: 'стандартное; на экваторе 9,780, на полюсах 9,832', wide: true },
+          { label: 'Первая космическая скорость', value: 7.91, decimals: 2, unit: 'км/с' },
+          { label: 'Вторая космическая скорость', value: 11.186, decimals: 3, unit: 'км/с' },
+          { label: 'Скорость вращения на экваторе', value: 465.1, decimals: 1, unit: 'м/с' },
+          { label: 'Средняя скорость по орбите', value: 29.78, decimals: 2, unit: 'км/с' },
+          { label: 'Возраст Земли', value: 4.54, decimals: 2, unit: 'млрд лет', note: '± 0,05 млрд лет (радиоизотопное датирование)', wide: true },
+        ],
+      },
+      {
+        type: 'stats',
+        title: 'Орбита и вращение',
+        items: [
+          { label: 'Перигелий', value: 147.10, decimals: 2, unit: 'млн км', note: 'около 3–4 января' },
+          { label: 'Афелий', value: 152.10, decimals: 2, unit: 'млн км', note: 'около 3–6 июля' },
+          { label: 'Большая полуось (1 а. е.)', value: 149.598, decimals: 3, unit: 'млн км', wide: true },
+          { label: 'Эксцентриситет орбиты', value: 0.0167, decimals: 4 },
+          { label: 'Наклон оси', value: 23.44, decimals: 2, unit: '°' },
+          { label: 'Звёздные сутки', text: '23 ч 56 мин 4,1 с' },
+          { label: 'Солнечные сутки', text: '24 ч (в среднем)' },
+          { label: 'Сидерический год', value: 365.256, decimals: 3, unit: 'сут' },
+          { label: 'Тропический год', value: 365.2422, decimals: 4, unit: 'сут' },
+        ],
+      },
+      {
+        type: 'text',
+        title: 'Почему сутки бывают разными',
+        paragraphs: [
+          'За звёздные сутки Земля поворачивается ровно на 360° относительно далёких звёзд. Но за это время она проходит около 1/365 своей орбиты, и чтобы Солнце вернулось в ту же точку неба, планете нужно довернуться ещё примерно на 1° — на это уходит почти 4 минуты.',
+          'Наклон оси 23,44° — причина смены времён года: летом в Северном полушарии солнечные лучи падают круче, а день длиннее. Освещённость глобуса в симуляции соответствует реальному моменту: положение Солнца рассчитывается по дате и времени.',
+        ],
+      },
+      {
+        type: 'actions',
+        items: [
+          { label: 'Реальное время', icon: 'realtime', action: 'realtime' },
+          { label: 'Ускорить ×10 000', icon: 'clock', action: 'speed', payload: 10000, accent: true },
+        ],
+      },
+    ],
+  },
+  /* @@SECTIONS@@ */
+];
+
 /* @@APPEND@@ */
