@@ -10,13 +10,28 @@ import { Sky, MOON_RADIUS } from './sky.js';
 import { PostFX } from './post.js';
 import { CameraDirector } from './camera.js';
 import { UI } from './ui.js';
-import { CONTINENT_NAMES } from './data.js';
+import { Interior } from './interior.js';
+import { Magnetosphere } from './magnetosphere.js';
+import { Continents } from './continents.js';
+import { Markers } from './markers.js';
+import { CONTINENT_NAMES, CONTINENTS } from './data.js';
 import { sunDirectionScene, sunPosition, RAD, EARTH_RADIUS_KM } from './astro.js';
-import { regionAt, nearestCity, localSolarTime, nominalUtcOffset, formatUtcOffset } from './geo.js';
+import { regionAt, nearestCity, localSolarTime, nominalUtcOffset, formatUtcOffset, formatCoords } from './geo.js';
 
 window.__earthBooted = true;
 
 const DAY_MS = 86400000;
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+
+/** SVG-иконка фазы Луны (вид из Северного полушария). */
+function moonPhaseSVG(illumination, waxing) {
+  const R = 30;
+  const rx = Math.abs(1 - 2 * illumination) * R;
+  const sweep = illumination > 0.5 ? 1 : 0;
+  const path = `M 0 ${-R} A ${R} ${R} 0 0 1 0 ${R} A ${rx.toFixed(2)} ${R} 0 0 ${sweep} 0 ${-R} Z`;
+  return `<svg viewBox="-34 -34 68 68" aria-hidden="true"><circle r="${R}" fill="#18202e" stroke="rgba(160,190,230,.25)"/>`
+    + `<path d="${path}" fill="#efe9dc" transform="scale(${waxing ? 1 : -1},1)"/></svg>`;
+}
 const QUALITY_LABEL = { high: 'High', medium: 'Medium', low: 'Low' };
 const PIXEL_RATIO = { high: 2, medium: 1.5, low: 1 };
 
@@ -64,6 +79,12 @@ class App {
     this.scene.add(this.earth.root);
     this.sky = new Sky({ moonTexture: textures.moon, pixelRatio: this.renderer.getPixelRatio(), quality: this.quality });
     this.scene.add(this.sky.group);
+    this.interior = new Interior(this.earth, document.getElementById('labels'));
+    this.magneto = new Magnetosphere(this.earth);
+    this.continents = new Continents(this.earth);
+    this.markers = new Markers(this.earth, this.renderer.getPixelRatio());
+    this.selectedContinent = null;
+    this.visitedContinents = new Set();
 
     this.director = new CameraDirector(this.camera, this.controls, {
       getMoonPos: () => this.sky.moonPos,
@@ -111,7 +132,7 @@ class App {
     controls.zoomSpeed = 0.8;
     controls.enablePan = false;
     controls.minDistance = 1.25;
-    controls.maxDistance = 90;
+    controls.maxDistance = 200;
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.25;
     this.controls = controls;
@@ -180,13 +201,21 @@ class App {
       this.audio?.click();
       return;
     }
+    const cut = this.interior.pickLayer(this.rayFromScreen(x, y));
+    if (cut) {
+      this.ui.showLayerCard(cut.layer, cut.depthKm, x, y);
+      this.audio?.click();
+      return;
+    }
     if (!hit) {
       this.ui.hideCard();
       return;
     }
     const info = this.describePoint(hit.lat, hit.lon);
-    this.ui.showPointCard(info, x, y);
-    this.onGlobeClick?.(hit, info);
+    this.markers.addPin(hit.lat, hit.lon, { color: '#46d4ff', ttl: 8, size: 14 });
+    if (this.ui.currentSection === 'continents' && info.continent) this.showContinent(info.continent);
+    else this.ui.showPointCard(info, x, y);
+    this.onGlobeClick?.(info);
     this.audio?.click();
   }
 
@@ -224,12 +253,19 @@ class App {
     const p = this.pointer;
     if (!p.inside || this.director.busy) {
       this.hover = null;
+      this.continents.setHover(this.selectedContinent);
+      return;
+    }
+    const cut = this.interior.pickLayer(this.rayFromScreen(p.x, p.y));
+    if (cut) {
+      this.hover = { title: cut.layer.name, label: `Глубина ≈ ${Math.round(cut.depthKm).toLocaleString('ru-RU')} км · ${cut.layer.range}` };
+      this.continents.setHover(null);
       return;
     }
     const hit = this.pickEarth(p.x, p.y);
     if (!hit) {
       this.hover = null;
-      this.onHoverRegion?.(null);
+      this.continents.setHover(this.selectedContinent);
       return;
     }
     const region = regionAt(hit.lat, hit.lon);
@@ -237,8 +273,54 @@ class App {
       ? (region.island ? `${region.island} · ${CONTINENT_NAMES[region.continent]}` : CONTINENT_NAMES[region.continent])
       : region.name;
     const time = localSolarTime(new Date(this.sim.time), hit.lon);
-    this.hover = { lat: hit.lat, lon: hit.lon, label: `${name} · ${time} местн. · ${formatUtcOffset(nominalUtcOffset(hit.lon))}`, region };
-    this.onHoverRegion?.(region);
+    this.hover = {
+      title: formatCoords(hit.lat, hit.lon),
+      label: `${name} · ${time} местн. · ${formatUtcOffset(nominalUtcOffset(hit.lon))}`,
+    };
+    this.continents.setHover(region.kind === 'land' ? region.continent : this.selectedContinent);
+  }
+
+  /* ---------------- Контент: разрез, материки, магнитосфера ---------------- */
+
+  toggleCut() {
+    if (this.director.mode === 'moon') this.director.reset();
+    const on = this.interior.toggle();
+    this.ui.setButtonActive('#ctrl-cut', on);
+    if (on) {
+      this.director.fly(() => ({
+        position: this.interior.viewDirection().multiplyScalar(this.director.fitDistance() * 0.95),
+        target: new THREE.Vector3(),
+        up: Y_AXIS.clone(),
+        fov: 40,
+      }), { duration: 2.4, arc: 0.1 });
+      if (this.ui.currentSection !== 'interior') this.ui.openSection('interior');
+      this.onCut?.();
+    }
+    return on;
+  }
+
+  showContinent(id) {
+    const c = CONTINENTS[id];
+    if (!c) return;
+    const [lat, lon] = c.center;
+    this.selectedContinent = id;
+    this.continents.setHover(id);
+    this.director.flyToLatLon(this.earth, lat, lon, id === 'eurasia' ? 3.1 : 2.7);
+    const w = window.innerWidth, h = window.innerHeight;
+    this.ui.showContinentCard(c, w / 2 + Math.min(260, w * 0.18), h / 2);
+    this.visitedContinents.add(id);
+    this.onContinent?.(id, this.visitedContinents.size);
+    clearTimeout(this.selectTimer);
+    this.selectTimer = setTimeout(() => { this.selectedContinent = null; }, 9000);
+  }
+
+  /** Текст для «живых» блоков разделов. */
+  liveInfo(key) {
+    if (key === 'moon' && this.sky?.moonInfo) {
+      const m = this.sky.moonInfo;
+      return `${moonPhaseSVG(m.illumination, m.waxing)}<div><b>${m.name}</b>освещено ${Math.round(m.illumination * 100)}% · возраст ${m.ageDays.toFixed(1).replace('.', ',')} сут<br>расстояние ${Math.round(m.distanceKm).toLocaleString('ru-RU')} км</div>`;
+    }
+    return '';
   }
 
   /* ---------------- Время ---------------- */
@@ -292,7 +374,9 @@ class App {
     else if (name === 'iss') {
       this.sky.setLayer('iss', on);
       this.sky.setLayer('issOrbit', on);
-    } else this.onExtraLayer?.(name, on);
+    } else if (name === 'borders') this.continents.setBorders(on);
+    else if (name === 'magnetic') this.magneto.setField(on);
+    else if (name === 'aurora') this.magneto.setAurora(on);
     this.ui.setLayerChecked(name, on);
   }
 
@@ -312,6 +396,7 @@ class App {
     this.earth?.setQuality(level);
     this.sky?.setQuality(level);
     this.sky?.setPixelRatio(this.renderer.getPixelRatio());
+    this.markers?.setPixelRatio(this.renderer.getPixelRatio());
     this.post.setQuality(level);
     this.onResize();
     this.ui?.setQualityButtons(this.qualityMode, level);
@@ -387,6 +472,29 @@ class App {
       case 'escape':
         if (this.director.mode === 'moon') this.director.reset();
         break;
+      case 'cut':
+        this.toggleCut();
+        break;
+      case 'continent':
+        this.showContinent(payload.id);
+        break;
+      case 'mariana':
+        this.director.flyToLatLon(this.earth, 11.35, 142.2, 1.7);
+        this.markers.addPin(11.35, 142.2, { color: '#ff6b6b', ttl: 25, size: 18 });
+        this.ui.toast({ title: 'Бездна Челленджера', text: 'Глубина ≈ 10 935 м, давление более 1 070 атм.', iconName: 'water', kind: 'info' });
+        break;
+      case 'aurora': {
+        this.setLayer('aurora', true);
+        this.magneto.storm(16);
+        const sp = sunPosition(new Date(this.sim.time));
+        this.director.flyToLatLon(this.earth, 62, sp.subLon + 180, 2.2);
+        this.ui.toast({ title: 'Магнитная буря', text: 'Сияния ярче всего на ночной стороне в авроральных овалах.', iconName: 'star', kind: 'info' });
+        break;
+      }
+      case 'moonOrbit':
+        this.setLayer('moonOrbit', true);
+        this.director.fly(() => ({ position: new THREE.Vector3(0.0, 1.0, 0.42).normalize().multiplyScalar(170), target: new THREE.Vector3(), up: new THREE.Vector3(0, 0, -1), fov: 40 }), { duration: 3.2, arc: 0.05 });
+        break;
       default:
         this.onExtraAction?.(action, payload);
     }
@@ -433,6 +541,10 @@ class App {
     this.sky.update(date, time, this.camera, this.sunDir);
     this.updateClipPlanes();
     if (this.frameIndex % 2 === 0) this.updateHover();
+    this.interior.update(dt, time, this.camera);
+    this.magneto.update(time, dt, this.sunDir);
+    this.continents.update(dt, time);
+    this.markers.update(dt, time);
     this.onFrame?.(date, dt, dtSim, time);
 
     this.sky.computeSunFlare(this.camera, this.flare);

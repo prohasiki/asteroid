@@ -172,12 +172,17 @@ export class Earth {
     if (name in this.overlayTargets) this.overlayTargets[name] = on ? 1 : 0;
   }
 
-  /** Плоскости отсечения (разрез планеты) для поверхности и облаков. */
-  setClippingPlanes(planes) {
-    this.surfaceMaterial.clippingPlanes = planes;
-    this.cloudsMaterial.clippingPlanes = planes;
-    this.surfaceMaterial.needsUpdate = true;
-    this.cloudsMaterial.needsUpdate = true;
+  /**
+   * Плоскости отсечения (разрез планеты) для поверхности и облаков.
+   * @param {THREE.Plane[]} planes
+   * @param {boolean} intersection — отсекать только пересечение полупространств (октант)
+   */
+  setClippingPlanes(planes, intersection = false) {
+    for (const m of [this.surfaceMaterial, this.cloudsMaterial]) {
+      m.clippingPlanes = planes;
+      m.clipIntersection = intersection;
+      m.needsUpdate = true;
+    }
   }
 
   setQuality(level) {

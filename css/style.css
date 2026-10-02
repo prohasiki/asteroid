@@ -371,19 +371,22 @@ p { margin: 0 0 10px; }
 .tab {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 7px;
-  padding: 7px 8px;
+  justify-content: center;
+  gap: 4px;
+  min-height: 52px;
+  padding: 6px 4px;
   border-radius: 10px;
   border: 1px solid rgba(120, 190, 255, 0.12);
   background: rgba(255, 255, 255, 0.03);
   color: #b9d3f0;
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1.15;
-  text-align: left;
+  text-align: center;
   transition: all 0.35s var(--ease);
 }
-.tab svg { width: 17px; height: 17px; }
+.tab svg { width: 18px; height: 18px; }
 .tab:hover { border-color: rgba(70, 212, 255, 0.45); color: #fff; background: rgba(70, 212, 255, 0.08); }
 .tab.active { border-color: var(--accent); background: linear-gradient(135deg, rgba(70, 212, 255, 0.22), rgba(143, 123, 255, 0.14)); color: #fff; box-shadow: 0 0 14px rgba(70, 212, 255, 0.25); }
 .tab.visited::after { content: ''; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 6px var(--ok); }
@@ -501,6 +504,10 @@ p { margin: 0 0 10px; }
 .chip:hover { border-color: var(--accent); background: rgba(70, 212, 255, 0.16); color: #fff; }
 .legend-chip { display: inline-flex; align-items: center; gap: 6px; }
 .legend-chip i { width: 9px; height: 9px; border-radius: 2px; }
+
+.live-info { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(120, 190, 255, 0.18); background: linear-gradient(135deg, rgba(70, 212, 255, 0.08), rgba(143, 123, 255, 0.06)); font-size: 12.5px; color: #d6e8fb; }
+.live-info svg { width: 64px; height: 64px; }
+.live-info b { display: block; font-family: var(--font-sub); font-size: 15px; color: #fff; }
 
 /* ---------- Элементы управления ---------- */
 .ctrl-group { padding: 12px 0 14px; border-bottom: 1px solid rgba(120, 190, 255, 0.1); }

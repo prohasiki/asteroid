@@ -265,6 +265,9 @@ export class UI {
       case 'chips':
         inner = `<div class="chips">${b.items.map((c) => `<button class="chip${c.color ? ' legend-chip' : ''}" type="button" data-action="${c.action}" data-payload="${attr(c.payload)}">${c.color ? `<i style="background:${c.color}"></i>` : ''}${esc(c.label)}</button>`).join('')}</div>`;
         break;
+      case 'live':
+        inner = `<div class="live-info" data-live="${b.key}">${this.app.liveInfo?.(b.key) ?? ''}</div>`;
+        break;
       case 'legend':
         inner = `<div class="chips">${b.items.map((c) => `<span class="chip legend-chip"><i style="background:${c.color}"></i>${esc(c.label)}</span>`).join('')}</div>`;
         break;
@@ -430,11 +433,18 @@ export class UI {
   /* ---------------- HUD ---------------- */
 
   updateHud(s) {
+    const now = performance.now();
+    if (!this.liveTime || now - this.liveTime > 1000) {
+      this.liveTime = now;
+      this.el.content.querySelectorAll('[data-live]').forEach((el) => {
+        el.innerHTML = this.app.liveInfo?.(el.dataset.live) ?? '';
+      });
+    }
     this.el.hudDate.textContent = formatDateUTC(s.date);
     this.el.hudSpeed.textContent = s.paused ? 'ПАУЗА' : `×${formatNumber(s.speed)}`;
     this.el.hudSun.textContent = `☉ ${formatLat(s.subsolar.lat)} · ${formatLon(s.subsolar.lon)}`;
     if (s.hover) {
-      this.el.hudCoords.textContent = formatCoords(s.hover.lat, s.hover.lon);
+      this.el.hudCoords.textContent = s.hover.title;
       this.el.hudRegion.textContent = s.hover.label;
     } else {
       this.el.hudCoords.textContent = '—';
@@ -538,6 +548,15 @@ export class UI {
         <dt>Государств</dt><dd>${esc(c.countries)}</dd>
       </dl>
       <ul class="card-facts">${c.facts.map((f) => `<li>${f}</li>`).join('')}</ul>`, x, y, 'continent');
+  }
+
+  /** Карточка слоя недр (при щелчке по разрезу). */
+  showLayerCard(layer, depthKm, x, y) {
+    this.showCard(`
+      <h4 class="gradient-text">${esc(layer.name)}</h4>
+      <div class="coords">глубина ≈ ${formatNumber(Math.round(depthKm))} км</div>
+      <dl><dt>Интервал глубин</dt><dd>${esc(layer.range)}</dd></dl>
+      <p class="hint">${esc(layer.desc)}</p>`, x, y);
   }
 
   /** Карточка Луны. */
