@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Планета Земля — интерактивная 3D-энциклопедия</title>
+  <meta name="description" content="Фотореалистичная интерактивная 3D-энциклопедия о Земле: реальное положение Солнца и Луны, атмосфера, внутреннее строение, магнитное поле, викторина и игра «Найди на глобусе».">
+  <meta name="theme-color" content="#02040a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g' cx='35%25' cy='30%25'%3E%3Cstop offset='0' stop-color='%2398e0ff'/%3E%3Cstop offset='.55' stop-color='%231f6fd1'/%3E%3Cstop offset='1' stop-color='%23061630'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='32' cy='32' r='28' fill='url(%23g)'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Шрифты подключаются неблокирующе: если Google Fonts недоступен, интерфейс сразу работает на системных шрифтах. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Orbitron:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Orbitron:wght@500;600;700&display=swap"></noscript>
+  <link rel="stylesheet" href="./css/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="scene" aria-label="Трёхмерная сцена: планета Земля"></div>
+  <div id="labels" aria-hidden="true"></div>
+
+  <!-- Экран загрузки -->
+  <div id="loader" role="status" aria-live="polite">
+    <div class="loader-orbit" aria-hidden="true">
+      <div class="loader-planet"></div>
+      <div class="loader-ring"></div>
+      <div class="loader-moon"></div>
+    </div>
+    <h1 class="loader-title">Планета Земля</h1>
+    <p class="loader-subtitle">Интерактивная 3D-энциклопедия</p>
+    <div class="loader-track"><div id="loader-bar"></div></div>
+    <div class="loader-meta"><span id="loader-percent">0%</span><span id="loader-text">Подготовка сцены…</span></div>
+    <ul id="loader-items"></ul>
+    <noscript><p class="loader-error">Для работы нужен браузер с поддержкой JavaScript и WebGL.</p></noscript>
+  </div>
+
+  <!-- Верхний HUD -->
+  <header class="hud-top" aria-label="Состояние симуляции">
+    <div class="brand">
+      <span class="brand-logo" data-icon="planet"></span>
+      <span class="brand-text">
+        <span class="brand-title">Планета Земля</span>
+        <span class="brand-sub">3D-энциклопедия</span>
+      </span>
+    </div>
+    <div class="hud-clock">
+      <span class="hud-label">Время симуляции · UTC</span>
+      <span id="hud-date" class="hud-value">—</span>
+      <span class="hud-clock-row"><span id="hud-speed" class="badge">×1</span><span id="hud-sun" class="hud-mini"></span></span>
+    </div>
+    <div class="hud-top-actions">
+      <button id="btn-sound" class="icon-btn" type="button" aria-pressed="false" title="Звук (выключен)" data-icon="sound-off"></button>
+      <button id="btn-fullscreen" class="icon-btn" type="button" title="Полноэкранный режим" data-icon="fullscreen"></button>
+    </div>
+  </header>
+
+  <!-- Левая панель: энциклопедия -->
+  <aside id="panel-left" class="panel panel-left glass" aria-label="Энциклопедия">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">Энциклопедия</h2>
+        <div class="explore">
+          <span class="explore-label">Изучено разделов</span>
+          <span id="explore-count" class="explore-count">0/9</span>
+        </div>
+        <div class="progress-track"><div id="explore-bar" class="progress-bar"></div></div>
+      </div>
+      <button class="icon-btn sheet-close" type="button" data-close-sheet title="Закрыть" data-icon="close"></button>
+    </div>
+    <nav id="section-tabs" class="tabs" role="tablist" aria-label="Разделы"></nav>
+    <div id="section-content" class="panel-body" role="tabpanel" tabindex="0"></div>
+  </aside>
+
+  <!-- Правая панель: управление -->
+  <aside id="panel-right" class="panel panel-right glass" aria-label="Управление">
+    <div class="panel-head">
+      <h2 class="panel-title">Управление</h2>
+      <button class="icon-btn sheet-close" type="button" data-close-sheet title="Закрыть" data-icon="close"></button>
+    </div>
+    <div class="panel-body">
+      <section class="ctrl-group">
+        <h3 class="ctrl-title"><span data-icon="clock"></span>Время</h3>
+        <div class="segmented" id="speed-buttons" role="group" aria-label="Скорость времени">
+          <button type="button" data-speed="1" class="active">1×</button>
+          <button type="button" data-speed="100">100×</button>
+          <button type="button" data-speed="1000">1000×</button>
+          <button type="button" data-speed="10000">10 000×</button>
+        </div>
+        <div class="btn-row">
+          <button id="ctrl-pause" class="btn" type="button" data-icon-left="pause">Пауза</button>
+          <button id="ctrl-realtime" class="btn" type="button" data-icon-left="realtime">Реальное время</button>
+        </div>
+        <label class="slider-label" for="date-slider">Дата: <b id="date-value">—</b></label>
+        <input id="date-slider" class="slider" type="range" min="-365" max="365" step="1" value="0">
+        <label class="slider-label" for="time-slider">Время UTC: <b id="time-value">—</b></label>
+        <input id="time-slider" class="slider" type="range" min="0" max="1439" step="1" value="0">
+        <p class="hint" id="subsolar-info"></p>
+      </section>
+
+      <section class="ctrl-group">
+        <h3 class="ctrl-title"><span data-icon="camera"></span>Вид</h3>
+        <div class="btn-grid">
+          <button id="ctrl-reset" class="btn" type="button" data-icon-left="reset">Сброс вида</button>
+          <button id="ctrl-moon" class="btn" type="button" data-icon-left="moon">Вид с Луны</button>
+          <button id="ctrl-cut" class="btn" type="button" data-icon-left="core">Разрез</button>
+          <button id="ctrl-screenshot" class="btn" type="button" data-icon-left="shot">Скриншот</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="opt-autorotate" checked><span class="toggle-ui"></span>Автовращение камеры</label>
+      </section>
+
+      <section class="ctrl-group">
+        <h3 class="ctrl-title"><span data-icon="layers"></span>Слои</h3>
+        <div class="toggle-list" id="layer-toggles"></div>
+      </section>
+
+      <section class="ctrl-group">
+        <h3 class="ctrl-title"><span data-icon="game"></span>Игры</h3>
+        <div class="btn-grid">
+          <button id="ctrl-quiz" class="btn btn-accent" type="button" data-icon-left="quiz">Викторина</button>
+          <button id="ctrl-find" class="btn btn-accent" type="button" data-icon-left="target">Найди на глобусе</button>
+        </div>
+        <p class="hint" id="best-scores"></p>
+      </section>
+
+      <section class="ctrl-group">
+        <h3 class="ctrl-title"><span data-icon="trophy"></span>Достижения <span id="ach-count" class="badge"></span></h3>
+        <ul id="achievements" class="achievements"></ul>
+      </section>
+
+      <section class="ctrl-group">
+        <h3 class="ctrl-title"><span data-icon="gear"></span>Качество</h3>
+        <div class="segmented" id="quality-buttons" role="group" aria-label="Качество графики">
+          <button type="button" data-quality="auto" class="active">Авто</button>
+          <button type="button" data-quality="high">High</button>
+          <button type="button" data-quality="medium">Medium</button>
+          <button type="button" data-quality="low">Low</button>
+        </div>
+        <p class="hint" id="quality-info"></p>
+      </section>
+    </div>
+  </aside>
+
+  <!-- Нижний HUD -->
+  <footer class="hud-bottom" aria-label="Навигация">
+    <div class="hud-cell hud-coords">
+      <span class="hud-label">Под курсором</span>
+      <span id="hud-coords" class="hud-value">—</span>
+      <span id="hud-region" class="hud-mini"></span>
+    </div>
+    <div class="toolbar" role="toolbar" aria-label="Быстрые действия">
+      <button class="tool-btn" type="button" data-action="reset" title="Сброс вида" data-icon="reset"><span>Сброс</span></button>
+      <button class="tool-btn" type="button" data-action="pause" title="Пауза" data-icon="pause"><span>Пауза</span></button>
+      <button class="tool-btn" type="button" data-action="realtime" title="Реальное время" data-icon="realtime"><span>Сейчас</span></button>
+      <button class="tool-btn" type="button" data-action="moon" title="Вид с Луны" data-icon="moon"><span>Луна</span></button>
+      <button class="tool-btn" type="button" data-action="screenshot" title="Скриншот (PNG)" data-icon="shot"><span>Снимок</span></button>
+    </div>
+    <div class="hud-cell hud-alt">
+      <span class="hud-label">Высота камеры</span>
+      <span id="hud-alt" class="hud-value">—</span>
+      <span id="hud-perf" class="hud-mini"></span>
+    </div>
+  </footer>
+
+  <!-- Мобильная навигация -->
+  <nav class="mobile-nav" aria-label="Панели">
+    <button type="button" data-open-sheet="panel-left" data-icon-left="book">Энциклопедия</button>
+    <button type="button" data-open-sheet="panel-right" data-icon-left="sliders">Управление</button>
+  </nav>
+
+  <div id="info-card" class="info-card glass hidden" role="dialog" aria-live="polite"></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="quiz" class="modal hidden" role="dialog" aria-modal="true" aria-label="Викторина">
+    <div id="quiz-card" class="modal-card glass"></div>
+  </div>
+  <div id="findgame" class="findgame glass hidden" role="dialog" aria-label="Найди на глобусе"></div>
+
+  <script>
+    // Сторож загрузки: если модули (Three.js с CDN) не загрузились, показать понятное сообщение.
+    setTimeout(function () {
+      if (window.__earthBooted) return;
+      var t = document.getElementById('loader-text');
+      if (t) t.textContent = 'Не удалось загрузить Three.js с CDN (cdn.jsdelivr.net). Проверьте подключение к интернету и обновите страницу.';
+      document.body.classList.add('boot-failed');
+    }, 20000);
+  </script>
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# Test-only dependencies (three.js and Playwright are installed here by tests/e2e.mjs)
+.test-deps/
+node_modules/
+test-results/
+tests/output/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
