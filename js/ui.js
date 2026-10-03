@@ -402,6 +402,10 @@ export class UI {
   }
 
   bindSheets() {
+    // Страховка: сама панель никогда не должна прокручиваться — прокручивается только её тело.
+    document.querySelectorAll('.panel').forEach((panel) => panel.addEventListener('scroll', () => {
+      if (panel.scrollTop || panel.scrollLeft) panel.scrollTo(0, 0);
+    }));
     document.querySelectorAll('[data-open-sheet]').forEach((b) => b.addEventListener('click', () => this.toggleSheet(b.dataset.openSheet)));
     document.querySelectorAll('[data-close-sheet]').forEach((b) => b.addEventListener('click', () => this.closeSheets()));
   }
