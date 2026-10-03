@@ -345,6 +345,7 @@ p { margin: 0 0 10px; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overflow: clip; /* clip не даёт браузеру прокрутить саму панель при фокусе */
   transition: transform 0.6s var(--ease), opacity 0.6s var(--ease);
 }
 .panel-left { left: 20px; }
@@ -569,8 +570,8 @@ p { margin: 0 0 10px; }
 
 .toggle-list { display: grid; gap: 2px; }
 .toggle-sep { margin: 8px 0 4px; font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
-.toggle { display: flex; align-items: center; gap: 10px; padding: 5px 2px; font-size: 12.5px; color: #cfe1f6; cursor: pointer; user-select: none; }
-.toggle input { position: absolute; opacity: 0; pointer-events: none; }
+.toggle { position: relative; display: flex; align-items: center; gap: 10px; padding: 5px 2px; font-size: 12.5px; color: #cfe1f6; cursor: pointer; user-select: none; }
+.toggle input { position: absolute; top: 50%; left: 2px; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
 .toggle-ui { position: relative; flex: none; width: 32px; height: 18px; border-radius: 9px; background: rgba(255, 255, 255, 0.12); transition: background 0.35s var(--ease); }
 .toggle-ui::after { content: ''; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: #9db3cf; transition: transform 0.35s var(--ease), background 0.35s; }
 .toggle input:checked + .toggle-ui { background: linear-gradient(90deg, var(--accent), var(--accent-2)); box-shadow: 0 0 10px rgba(70, 212, 255, 0.4); }
